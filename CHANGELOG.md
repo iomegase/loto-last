@@ -12,6 +12,9 @@ Le projet suit [Semantic Versioning](https://semver.org/) :
 
 ### Application personnelle
 
+- module Pronostics : grilles reproductibles, contraintes et quatre méthodes exploratoires ;
+- simulation chronologique face au hasard, sans accès aux résultats futurs, sur 20 répétitions ;
+
 - atelier local en français : vue d’ensemble, numéros, paires et historique ;
 - filtres communs, détail des numéros, recherche, pagination et exports CSV ;
 - séparation des régimes et du second tirage, fréquences nulles et retards bornés explicites ;

@@ -90,7 +90,8 @@ app.addEventListener("click",event=>{
 });
 app.addEventListener("change",event=>{
  const target=event.target as HTMLSelectElement | HTMLInputElement;
- if(["regime","kind","window","from","to"].includes(target.id)) {
+ if(target.id==="forecast-method") {state.forecast.method=target.value as Method;render();}
+ else if(["regime","kind","window","from","to"].includes(target.id)) {
   state.filters=restoreFilters({...state.filters,[target.id]:target.value});state.page=0;state.expanded="";clearForecast();save();render();
  } else if(target.id==="number-sort") { state.sort=target.value;render(); }
  else if(target.id==="pair-number") { state.pairNumber=Number(target.value);render(); }
@@ -116,7 +117,7 @@ app.addEventListener("input",event=>{
  const input=event.target as HTMLInputElement;
  const fields:Record<string,"method"|"quantity"|"seed"|"include"|"exclude">={"forecast-method":"method","forecast-quantity":"quantity","forecast-seed":"seed","forecast-include":"include","forecast-exclude":"exclude"};
  const field=fields[input.id];if(!field)return;
- if(field==="method") {state.forecast.method=input.value as Method;render();}
+ if(field==="method") state.forecast.method=input.value as Method;
  else if(field==="quantity"||field==="seed")state.forecast[field]=Number(input.value);
  else state.forecast[field]=input.value;
 });

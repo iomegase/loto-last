@@ -159,3 +159,13 @@ npm run build:frontend
 ```
 
 Cette commande produit un site statique autonome dans `dist/app`, avec un instantané compact des données (environ 850 Ko). Servir ce répertoire via HTTP ; ne pas ouvrir `index.html` directement avec `file://`. Une nouvelle construction est nécessaire pour actualiser cet instantané ou prendre en compte un changement de code. Le serveur de développement reconstruit l’application à son lancement, sans rechargement automatique du code.
+
+### Pronostics exploratoires
+
+La vue **Pronostics** concerne le **LOTO moderne, tirage principal**. Elle génère de 1 à 20 grilles distinctes (5 numéros + Chance), avec des numéros imposés ou exclus et une graine permettant de reproduire la série.
+
+Quatre méthodes sont disponibles : hasard uniforme ; tirage pondéré par les fréquences observées + 1 ; tirage pondéré par les retards observés + 1 ; composition avec deux ou trois numéros pairs. Chance reste uniforme de 1 à 10. Les poids sont des critères de génération, pas des probabilités estimées du prochain tirage. L’export CSV conserve les grilles, la méthode, la graine et la date limite des données utilisées.
+
+**Comparer au hasard** réserve les 20 premiers tirages sélectionnés à l’apprentissage et évalue au maximum les 200 suivants les plus récents. Pour chaque date testée, les grilles sont composées uniquement à partir des 50 tirages précédents au maximum. Le protocole utilise une grille par méthode et par tirage, sur 20 répétitions reproductibles, avec les mêmes dates et graines pour les deux méthodes. Les contraintes personnelles et le nombre de grilles du générateur ne s’appliquent pas à la simulation.
+
+Les résultats affichent le nombre moyen de bons numéros, les proportions d’au moins trois correspondances et de Chance correct, ainsi que la plage min.–max. des moyennes des répétitions. Cette plage n’est pas un intervalle de confiance. Un détail des dernières prédictions de la première répétition permet de vérifier la date limite d’apprentissage. Les méthodes ne sont pas classées comme meilleures pour le futur et aucun gain monétaire n’est estimé. Changer la période ou recharger les données efface les résultats devenus obsolètes.
