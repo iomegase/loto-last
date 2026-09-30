@@ -17,6 +17,7 @@ Le projet suit [Semantic Versioning](https://semver.org/) :
 - méthode « Numéros peu joués » : popularité des numéros et du numéro Chance estimée d’après les gagnants par rang (depuis mars 2017), pour des gains moins partagés sans changer les chances de gagner ;
 - simulation chiffrée en euros avec les rapports réellement versés à chaque tirage, option 2nd tirage comprise ;
 - test long : tout l’historique avec gains publiés (depuis 2017), 500 grilles par tirage, écart face au hasard avec marge à 95 % ; les 5 bons numéros sont comptés à part ;
+- onglet « Mes grilles » : grilles jouées enregistrées dans le navigateur, comparées aux tirages avec les gains réels (2nd tirage compris), bilan misé / gagné / solde, sauvegarde JSON et export CSV ; enregistrement en un clic depuis Pronostics ;
 - onglet « Mode d’emploi » : démarche, mises, lecture des tests, fonctionnement et jeu responsable ;
 - `npm run check` vérifie aussi le typage du frontend ;
 - correctif : le serveur local sert le module de popularité (l’atelier restait bloqué au chargement avec `npm run dev`) ;

@@ -3,13 +3,17 @@ import { initialForecast } from "./forecasts-view.js";
 import { analyzeNumbers, analyzePairs, csvExport, filterDraws, historyRows, parseQuery, restoreFilters } from "./analytics.js";
 import { defaults, type Dataset, type View } from "./model.js";
 import { shell, type UIState } from "./views.js";
-import { escape } from "./charts.js";
+import { date, escape } from "./charts.js";
+import { backup, createTicket, mergeTickets, nextDrawDate, restoreTickets, type Ticket } from "./tickets.js";
+import { emptyDraft, ticketResults } from "./tickets-view.js";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
-const storageKey = "loto-atelier.filters.v1";
+const storageKey = "loto-atelier.filters.v1", ticketsKey = "loto-atelier.tickets.v1";
 let stored: unknown;
 try { stored=JSON.parse(localStorage.getItem(storageKey) ?? "null"); } catch { stored=null; }
-const state: UIState = { filters: restoreFilters(stored), view:"overview", selected:23, sort:"count", pairNumber:0, page:0, query:"", queryNumbers:[], queryError:"", expanded:"", forecast:initialForecast() };
+let storedTickets: unknown;
+try { storedTickets=JSON.parse(localStorage.getItem(ticketsKey) ?? "[]"); } catch { storedTickets=[]; }
+const state: UIState = { filters: restoreFilters(stored), view:"overview", selected:23, sort:"count", pairNumber:0, page:0, query:"", queryNumbers:[], queryError:"", expanded:"", forecast:initialForecast(), tickets:restoreTickets(storedTickets), ticketDraft:emptyDraft(nextDrawDate(new Date())) };
 let dataset: Dataset | null = null;
 let loading = false;
 let toastTimer: ReturnType<typeof setTimeout>;
@@ -18,19 +22,39 @@ function toast(text:string) {
  clearTimeout(toastTimer); element.textContent=text; element.classList.add("visible");
  toastTimer=setTimeout(()=>element.classList.remove("visible"),3500);
 }
-function currentView():View { const value=location.hash.slice(1); return ["overview","numbers","pairs","history","forecasts","guide"].includes(value)?value as View:"overview"; }
+function currentView():View { const value=location.hash.slice(1); return ["overview","numbers","pairs","history","forecasts","tickets","guide"].includes(value)?value as View:"overview"; }
 function render() {
  if(!dataset) return;
  const focus=document.activeElement as HTMLElement|null;
  const id=focus?.id, number=focus?.dataset.number;
  state.view=currentView();
  app.innerHTML=shell(dataset,state,filterDraws(dataset.draws,state.filters));
- document.title=`${{overview:"Vue d’ensemble",numbers:"Numéros",pairs:"Paires",history:"Historique",forecasts:"Pronostics",guide:"Mode d’emploi"}[state.view]} — LOTO / Atelier`;
+ document.title=`${{overview:"Vue d’ensemble",numbers:"Numéros",pairs:"Paires",history:"Historique",forecasts:"Pronostics",tickets:"Mes grilles",guide:"Mode d’emploi"}[state.view]} — LOTO / Atelier`;
  if(id) document.getElementById(id)?.focus({preventScroll:true});
  else if(number) app.querySelector<HTMLElement>(`[data-number="${number}"]`)?.focus({preventScroll:true});
 }
 function save() {
  try { localStorage.setItem(storageKey,JSON.stringify(state.filters)); } catch { /* Private browsing may disallow storage. Analysis still works. */ }
+}
+// Played grids exist only in this browser: a failed write must be visible so the player can export a backup.
+function saveTickets(tickets:Ticket[]):boolean {
+ try { localStorage.setItem(ticketsKey,JSON.stringify(tickets)); state.tickets=tickets; return true; }
+ catch { toast("Enregistrement impossible dans ce navigateur (navigation privée ?). Rien n’a été modifié."); return false; }
+}
+function download(text:string,type:string,name:string) {
+ const url=URL.createObjectURL(new Blob([text],{type}));
+ const link=document.createElement("a"); link.href=url; link.download=name;
+ document.body.append(link); link.click(); link.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+async function importTickets(file:File) {
+ try {
+  if(file.size>5_000_000) throw new Error();
+  const incoming=restoreTickets(JSON.parse(await file.text()));
+  if(!incoming.length) { toast("Aucune grille valide dans ce fichier."); return; }
+  const {tickets,added}=mergeTickets(state.tickets,incoming);
+  if(saveTickets(tickets)) toast(added?`${added} grille${added>1?"s":""} importée${added>1?"s":""}.`:"Toutes ces grilles étaient déjà enregistrées.");
+ } catch { toast("Ce fichier n’est pas une sauvegarde de grilles valide."); }
+ render();
 }
 async function load(refresh=false) {
  if(loading) return;
@@ -50,6 +74,12 @@ async function load(refresh=false) {
 }
 function exportData() {
  if(!dataset) return;
+ if(state.view==="tickets") {
+  if(!state.tickets.length) { toast("Aucune grille à exporter."); return; }
+  const rows=ticketResults(dataset,state.tickets).map(r=>[r.ticket.date,r.ticket.numbers.join(" "),r.ticket.chance,r.ticket.second?"oui":"non",r.stake,r.status,r.hits??"",r.chanceHit===null?"":r.chanceHit?"oui":"non",r.rank||"",r.gain??"",r.secondHits??"",r.secondRank||"",r.secondGain??""]);
+  download(csvExport(["tirage","numeros","chance","second_tirage","mise","statut","bons_numeros","chance_trouvee","rang","gain","bons_2nd","rang_2nd","gain_2nd"],rows),"text/csv;charset=utf-8","loto-mes-grilles.csv");
+  toast("Export CSV préparé."); return;
+ }
  const draws=filterDraws(dataset.draws,state.filters);
  if(!draws.length) { toast("Aucun tirage à exporter dans cette période."); return; }
  let text:string;
@@ -81,6 +111,24 @@ app.addEventListener("click",event=>{
   case "forecast-seed": state.forecast.seed=crypto.getRandomValues(new Uint32Array(1))[0];render();break;
   case "forecast-test": void runBacktest(false);break;
   case "forecast-test-long": void runBacktest(true);break;
+  case "forecast-save": {
+   const series=state.forecast.generated; if(!series) break;
+   const drawDate=nextDrawDate(new Date()),now=new Date().toISOString();
+   const added=series.grids.map(g=>createTicket({date:drawDate,numbers:g.numbers,chance:g.chance,second:false},crypto.randomUUID(),now));
+   if(saveTickets([...state.tickets,...added])) toast(`${added.length} grille${added.length>1?"s":""} enregistrée${added.length>1?"s":""} pour le tirage du ${date(drawDate)}. Réglez l’option 2nd tirage dans Mes grilles.`);
+   break;
+  }
+  case "ticket-second": {
+   const id=target.dataset.ticket;
+   if(saveTickets(state.tickets.map(t=>t.id===id?{...t,second:!t.second}:t))) render();
+   break;
+  }
+  case "ticket-delete": {
+   const ticket=state.tickets.find(t=>t.id===target.dataset.ticket);
+   if(ticket&&confirm(`Supprimer la grille ${ticket.numbers.join(" ")} + ${ticket.chance} du ${date(ticket.date)} ?`)&&saveTickets(state.tickets.filter(t=>t!==ticket))) render();
+   break;
+  }
+  case "ticket-export": download(JSON.stringify(backup(state.tickets,new Date()),null,1),"application/json",`loto-mes-grilles-${new Date().toISOString().slice(0,10)}.json`);toast("Sauvegarde exportée.");break;
   case "reset": state.filters={...defaults}; state.page=0;state.query="";state.queryNumbers=[];state.queryError=""; save();clearForecast();render();break;
   case "refresh": void load(true);break;
   case "retry": void load();break;
@@ -92,12 +140,23 @@ app.addEventListener("click",event=>{
 app.addEventListener("change",event=>{
  const target=event.target as HTMLSelectElement | HTMLInputElement;
  if(target.id==="forecast-method") {state.forecast.method=target.value as Method;render();}
+ else if(target.id==="ticket-import") { const file=(target as HTMLInputElement).files?.[0]; (target as HTMLInputElement).value=""; if(file) void importTickets(file); }
+ else if(target.id==="ticket-second") state.ticketDraft.second=(target as HTMLInputElement).checked;
  else if(["regime","kind","window","from","to"].includes(target.id)) {
   state.filters=restoreFilters({...state.filters,[target.id]:target.value});state.page=0;state.expanded="";clearForecast();save();render();
  } else if(target.id==="number-sort") { state.sort=target.value;render(); }
  else if(target.id==="pair-number") { state.pairNumber=Number(target.value);render(); }
 });
 app.addEventListener("submit",event=>{
+ if((event.target as HTMLElement).id==="ticket-form") {
+  event.preventDefault();
+  const d=state.ticketDraft;
+  try {
+   const ticket=createTicket({date:d.date,numbers:parseQuery(d.numbers),chance:Number(d.chance),second:d.second},crypto.randomUUID(),new Date().toISOString());
+   if(saveTickets([...state.tickets,ticket])) { state.ticketDraft={...emptyDraft(d.date),second:d.second}; toast(`Grille enregistrée pour le tirage du ${date(ticket.date)}.`); }
+  } catch(error) { d.error=(error as Error).message; }
+  render(); return;
+ }
  if((event.target as HTMLElement).id==="forecast-form") {
   event.preventDefault();
   if(!dataset)return;
@@ -119,6 +178,8 @@ function clearForecast() {state.forecast.generated=null;state.forecast.result=nu
 app.addEventListener("input",event=>{
  const input=event.target as HTMLInputElement;
  const fields:Record<string,"method"|"quantity"|"seed"|"include"|"exclude">={"forecast-method":"method","forecast-quantity":"quantity","forecast-seed":"seed","forecast-include":"include","forecast-exclude":"exclude"};
+ const draftFields:Record<string,"date"|"numbers"|"chance">={"ticket-date":"date","ticket-numbers":"numbers","ticket-chance":"chance"};
+ if(draftFields[input.id]) { state.ticketDraft[draftFields[input.id]]=input.value; state.ticketDraft.error=""; return; }
  const field=fields[input.id];if(!field)return;
  if(field==="method") state.forecast.method=input.value as Method;
  else if(field==="quantity"||field==="seed")state.forecast[field]=Number(input.value);

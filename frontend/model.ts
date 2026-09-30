@@ -1,6 +1,6 @@
 export type Regime = "modern" | "historic";
 export type DrawKind = "main" | "second";
-export type View = "overview" | "numbers" | "pairs" | "history" | "forecasts" | "guide";
+export type View = "overview" | "numbers" | "pairs" | "history" | "forecasts" | "tickets" | "guide";
 export interface Draw {
   id: string;
   date: string;

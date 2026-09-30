@@ -18,6 +18,7 @@ export function guideView(data: Dataset) {
    <li><strong>Cliquez sur « Générer les grilles ».</strong> Vous pouvez imposer ou exclure des numéros, mais chaque contrainte éloigne un peu la grille de l’objectif « peu joué ».</li>
    <li><strong>Recopiez chaque grille chez FDJ, numéro Chance compris.</strong> La méthode choisit aussi un numéro Chance peu joué : le 7, par exemple, est choisi par 14 % des joueurs au lieu de 10 %.</li>
    <li><strong>Cochez l’option 2nd tirage (+0,80 €) si vous voulez gagner plus souvent.</strong> C’est la mise la plus rentable par euro, et l’effet « peu joués » y est le plus net.</li>
+   <li><strong>Enregistrez vos grilles dans <a href="#tickets">Mes grilles</a>.</strong> Le bouton « Enregistrer comme jouées » de Pronostics les ajoute pour le prochain tirage. Après le tirage, l’atelier indique vos bons numéros, vos gains réels et votre solde. Exportez régulièrement une sauvegarde : les grilles ne sont conservées que dans ce navigateur.</li>
   </ol>
  </section>
 
@@ -45,6 +46,7 @@ export function guideView(data: Dataset) {
    <dt><a href="#overview">Vue d’ensemble</a></dt><dd>Sommes, parité, répétitions d’un tirage à l’autre dans la période choisie.</dd>
    <dt><a href="#numbers">Analyse des numéros</a></dt><dd>Sorties, écart à la moyenne théorique et retard de chaque numéro. Un numéro « en retard » n’est pas « dû ».</dd>
    <dt><a href="#pairs">Explorer les paires</a></dt><dd>Les numéros sortis ensemble le plus souvent.</dd>
+   <dt><a href="#tickets">Mes grilles</a></dt><dd>Vos grilles jouées, comparées automatiquement aux tirages, avec le total misé, le total gagné et le solde. Sauvegarde et import en fichier JSON, export CSV.</dd>
    <dt><a href="#history">Historique des tirages</a></dt><dd>Tous les tirages depuis 1976, avec recherche par numéros et export CSV.</dd>
   </dl>
   <p class="guide-note">Les filtres en haut de ces onglets (régime, tirage principal ou second, période) ne changent que l’affichage. Les grilles « peu jouées » et le test long utilisent toujours tout l’historique disponible.</p>
