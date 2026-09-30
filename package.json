@@ -12,7 +12,7 @@
     "stats": "node --import tsx scripts/statistics.ts",
     "pipeline": "npm run check && npm run import && npm run normalize",
     "test": "node --import tsx --test tests/**/*.test.ts",
-    "check": "tsc --noEmit && npm test",
+    "check": "tsc --noEmit && tsc -p frontend/tsconfig.json --noEmit && npm test",
     "audit:ci": "npm audit --audit-level=moderate",
     "dev": "node --import tsx scripts/frontend-dev.ts",
     "build:frontend": "node --import tsx scripts/frontend-build.ts"

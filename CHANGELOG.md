@@ -16,6 +16,10 @@ Le projet suit [Semantic Versioning](https://semver.org/) :
 - simulation chronologique face au hasard, sans accès aux résultats futurs, sur 20 répétitions ;
 - méthode « Numéros peu joués » : popularité des numéros et du numéro Chance estimée d’après les gagnants par rang (depuis mars 2017), pour des gains moins partagés sans changer les chances de gagner ;
 - simulation chiffrée en euros avec les rapports réellement versés à chaque tirage, option 2nd tirage comprise ;
+- test long : tout l’historique avec gains publiés (depuis 2017), 500 grilles par tirage, écart face au hasard avec marge à 95 % ; les 5 bons numéros sont comptés à part ;
+- onglet « Mode d’emploi » : démarche, mises, lecture des tests, fonctionnement et jeu responsable ;
+- `npm run check` vérifie aussi le typage du frontend ;
+- correctif : le serveur local sert le module de popularité (l’atelier restait bloqué au chargement avec `npm run dev`) ;
 - contrôle de fraîcheur des données dans la mise à jour automatique (échec si le dernier tirage a plus de 7 jours) ;
 
 - atelier local en français : vue d’ensemble, numéros, paires et historique ;

@@ -18,14 +18,14 @@ function toast(text:string) {
  clearTimeout(toastTimer); element.textContent=text; element.classList.add("visible");
  toastTimer=setTimeout(()=>element.classList.remove("visible"),3500);
 }
-function currentView():View { const value=location.hash.slice(1); return ["overview","numbers","pairs","history","forecasts"].includes(value)?value as View:"overview"; }
+function currentView():View { const value=location.hash.slice(1); return ["overview","numbers","pairs","history","forecasts","guide"].includes(value)?value as View:"overview"; }
 function render() {
  if(!dataset) return;
  const focus=document.activeElement as HTMLElement|null;
  const id=focus?.id, number=focus?.dataset.number;
  state.view=currentView();
  app.innerHTML=shell(dataset,state,filterDraws(dataset.draws,state.filters));
- document.title=`${{overview:"Vue d’ensemble",numbers:"Numéros",pairs:"Paires",history:"Historique",forecasts:"Pronostics"}[state.view]} — LOTO / Atelier`;
+ document.title=`${{overview:"Vue d’ensemble",numbers:"Numéros",pairs:"Paires",history:"Historique",forecasts:"Pronostics",guide:"Mode d’emploi"}[state.view]} — LOTO / Atelier`;
  if(id) document.getElementById(id)?.focus({preventScroll:true});
  else if(number) app.querySelector<HTMLElement>(`[data-number="${number}"]`)?.focus({preventScroll:true});
 }
@@ -79,7 +79,8 @@ app.addEventListener("click",event=>{
  switch(target.dataset.action) {
   case "forecast-modern": state.filters={...state.filters,regime:"modern",kind:"main"};clearForecast();save();render();break;
   case "forecast-seed": state.forecast.seed=crypto.getRandomValues(new Uint32Array(1))[0];render();break;
-  case "forecast-test": void runBacktest();break;
+  case "forecast-test": void runBacktest(false);break;
+  case "forecast-test-long": void runBacktest(true);break;
   case "reset": state.filters={...defaults}; state.page=0;state.query="";state.queryNumbers=[];state.queryError=""; save();clearForecast();render();break;
   case "refresh": void load(true);break;
   case "retry": void load();break;
@@ -123,7 +124,7 @@ app.addEventListener("input",event=>{
  else if(field==="quantity"||field==="seed")state.forecast[field]=Number(input.value);
  else state.forecast[field]=input.value;
 });
-async function runBacktest() {
+async function runBacktest(long:boolean) {
  if(!dataset||state.forecast.busy)return;
  const source=filterDraws(dataset.draws,state.filters),method=state.forecast.method,seed=state.forecast.seed;
  const filters=JSON.stringify(state.filters),data=dataset;
@@ -131,7 +132,7 @@ async function runBacktest() {
  await new Promise(resolve=>setTimeout(resolve,40));
  try {
   if(filters!==JSON.stringify(state.filters)||data!==dataset)return;
-  state.forecast.result=backtest(source,method,seed,referenceDraws());
+  state.forecast.result=long?backtest(referenceDraws(),method,seed,{long}):backtest(source,method,seed,{reference:referenceDraws()});
  } catch(error) {state.forecast.error=(error as Error).message;}
  finally {state.forecast.busy=false;render();}
 }

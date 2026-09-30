@@ -6,7 +6,7 @@ import { readFrontendData } from "./frontend-data.js";
 const assets: Record<string, string> = {
   "/": "index.html", "/index.html": "index.html", "/styles.css": "styles.css",
   "/app.js": "app.js", "/model.js": "model.js", "/analytics.js": "analytics.js",
-  "/charts.js": "charts.js", "/views.js": "views.js", "/favicon.svg": "favicon.svg", "/forecasts.js": "forecasts.js", "/forecasts-view.js": "forecasts-view.js"
+  "/charts.js": "charts.js", "/views.js": "views.js", "/favicon.svg": "favicon.svg", "/forecasts.js": "forecasts.js", "/forecasts-view.js": "forecasts-view.js", "/popularity.js": "popularity.js", "/guide-view.js": "guide-view.js"
 };
 for(const [family, weights] of [["dm-sans",[400,500,600,700]], ["manrope",[400,500,600,700,800]]] as const) {
   for(const weight of weights) assets[`/fonts/${family}-${weight}.ttf`] = `fonts/${family}-${weight}.ttf`;

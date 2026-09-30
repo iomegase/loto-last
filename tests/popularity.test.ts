@@ -51,3 +51,24 @@ test("2nd tirage pays the same five numbers without Chance, from 2 good numbers"
  assert.equal(backtest(withSecond.map(d=>({...d,second:[50,51,52,53,54]})),'random',5).strategy.secondGain,0);
  assert.equal(backtest(draws,'random',5).strategy.secondGain,null);
 });
+test("long backtest covers every draw after 60 priced ones and reports a paired margin",()=>{
+ const unpriced=draws.slice(0,30).map((d,i)=>({...d,date:new Date(Date.UTC(2024,0,i+1)).toISOString().slice(0,10),prizes:null}));
+ const history=[...unpriced,...draws];
+ const result=backtest(history,'unpopular',4,{long:true});
+ assert.ok(result.long);
+ assert.equal(result.trials,500);
+ assert.equal(result.first,draws[60].date);
+ assert.equal(result.draws,draws.length-60);
+ assert.ok(result.edge!.margin>0&&result.edge!.draws===result.draws);
+ const random=backtest(history,'random',4,{long:true});
+ assert.deepEqual([random.edge!.delta,random.edge!.margin],[0,0]);
+ assert.throws(()=>backtest(unpriced,'random',1,{long:true}),/60 tirages/);
+});
+test("five good numbers are counted apart and never inflate average gains",()=>{
+ // Every draw repeats the same numbers, so frequency weights pick them and often hit all five.
+ const same=draws.map(d=>({...d,numbers:[10,20,30,40,45],bonus:3,second:[10,20,30,40,45],secondPayouts:[100000,600,30,3]}));
+ const result=backtest(same,'frequency',2);
+ assert.ok(result.strategy.jackpots>result.trials);
+ // Including them would add at least 100 000 € × jackpot rate (> 10 %) to each average.
+ assert.ok(result.strategy.gain!<10000&&result.strategy.secondGain!<10000);
+});

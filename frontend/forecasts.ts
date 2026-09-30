@@ -67,27 +67,40 @@ export function generateGrids(draws:Draw[],options:GeneratorOptions):Grid[] {
  if(grids.length!==options.count)throw new Error("Impossible de produire autant de grilles distinctes. Réduisez le nombre demandé.");
  return grids;
 }
-/** gain / secondGain: average payout in euros per grid (LOTO, then "2nd tirage" option) over draws with published prizes, null when none. */
-export interface ResultStats { average:number; threePlus:number; chanceRate:number; low:number; high:number; gain:number|null; wins:number; secondGain:number|null; secondWins:number }
+/** gain / secondGain: average payout in euros per grid (LOTO, then "2nd tirage" option) over draws with published prizes, null when none.
+ * Five good numbers (about 1 in 2 million) are pure luck at this scale: they are counted in jackpots, not in the averages. */
+export interface ResultStats { average:number; threePlus:number; chanceRate:number; low:number; high:number; gain:number|null; wins:number; secondGain:number|null; secondWins:number; jackpots:number }
+/** Paired per-draw difference of payout per grid (method − random), with a 95 % margin. */
+export interface Edge { delta:number; margin:number; draws:number }
 export interface BacktestResult {
- method:Method; seed:number; draws:number; priced:number; secondPriced:number; trials:number; first:string; last:string;
- strategy:ResultStats; baseline:ResultStats;
+ method:Method; seed:number; draws:number; priced:number; secondPriced:number; trials:number; first:string; last:string; long:boolean;
+ strategy:ResultStats; baseline:ResultStats; edge:Edge|null; secondEdge:Edge|null;
  trace:{date:string;trainedThrough:string;grid:Grid;baseline:Grid;actual:Grid;matches:number;randomMatches:number}[];
 }
-export function backtest(draws:Draw[],method:Method,seed:number,reference:Draw[]=draws):BacktestResult {
+export interface BacktestOptions { reference?:Draw[]; long?:boolean }
+// The long test covers every draw once 60 priced draws precede it, so every method can estimate popularity.
+const LONG_TRIALS=500,LONG_WARMUP=60;
+export function backtest(draws:Draw[],method:Method,seed:number,options:BacktestOptions={}):BacktestResult {
  validateHistory(draws);
+ const reference=options.reference??draws,long=options.long??false;
  if(draws.length<21)throw new Error("Sélectionnez au moins 21 tirages : 20 pour démarrer, puis un tirage à tester.");
- const start=Math.max(20,draws.length-200),trials=20,n=draws.length-start;
- const totals=()=>Array.from({length:trials},()=>({hits:0,three:0,chance:0,gain:0,wins:0,secondGain:0,secondWins:0}));
+ let start=Math.max(20,draws.length-200);
+ if(long) {
+  let seen=0;start=draws.findIndex(d=>(d.prizes?++seen:seen)>LONG_WARMUP);
+  if(start<0)throw new Error(`Le test long demande plus de ${LONG_WARMUP} tirages avec gains publiés (depuis mars 2017).`);
+ }
+ const trials=long?LONG_TRIALS:20,n=draws.length-start;
+ const totals=()=>Array.from({length:trials},()=>({hits:0,three:0,chance:0,gain:0,wins:0,secondGain:0,secondWins:0,jackpots:0}));
  const selected=totals(),baseline=totals();
  const trace:BacktestResult['trace']=[];
  let priced=0,secondPriced=0;
+ const diffs={main:[] as number[],second:[] as number[]};
  const score=(run:ReturnType<typeof totals>[number],grid:Grid,actual:Draw)=>{
   const hits=grid.numbers.filter(x=>actual.numbers.includes(x)).length,rank=prizeRank(hits,grid.chance===actual.bonus);
   run.hits+=hits;run.three+=Number(hits>=3);run.chance+=Number(grid.chance===actual.bonus);
-  if(rank&&actual.prizes){run.gain+=actual.prizes.payouts[rank-1];run.wins++;}
+  if(rank&&actual.prizes){run.wins++;if(rank<=2)run.jackpots++;else run.gain+=actual.prizes.payouts[rank-1];}
   const second=actual.second&&actual.secondPayouts?secondRank(grid.numbers.filter(x=>actual.second!.includes(x)).length):0;
-  if(second){run.secondGain+=actual.secondPayouts![second-1];run.secondWins++;}
+  if(second){run.secondWins++;if(second===1)run.jackpots++;else run.secondGain+=actual.secondPayouts![second-1];}
   return hits;
  };
  for(let i=start;i<draws.length;i++) {
@@ -95,6 +108,7 @@ export function backtest(draws:Draw[],method:Method,seed:number,reference:Draw[]
   const config=setup(history,{method,count:1,seed,reference}),uniform=setup(history,{method:'random',count:1,seed});
   if(actual.prizes)priced++;
   if(actual.second&&actual.secondPayouts)secondPriced++;
+  const before=[selected,baseline].map(runs=>runs.reduce((s,r)=>[s[0]+r.gain,s[1]+r.secondGain],[0,0]));
   for(let trial=0;trial<trials;trial++) {
    // Date-specific streams make each prediction reproducible without looking at its outcome.
    const dateSeed=Number(actual.date.replaceAll('-',''));
@@ -104,7 +118,16 @@ export function backtest(draws:Draw[],method:Method,seed:number,reference:Draw[]
    const hits=score(selected[trial],grid,actual),randomHits=score(baseline[trial],randomGrid,actual);
    if(trial===0)trace.push({date:actual.date,trainedThrough:history.at(-1)!.date,grid,baseline:randomGrid,actual:{numbers:actual.numbers,chance:actual.bonus},matches:hits,randomMatches:randomHits});
   }
+  const after=[selected,baseline].map(runs=>runs.reduce((s,r)=>[s[0]+r.gain,s[1]+r.secondGain],[0,0]));
+  const delta=(k:number)=>((after[0][k]-before[0][k])-(after[1][k]-before[1][k]))/trials;
+  if(actual.prizes)diffs.main.push(delta(0));
+  if(actual.second&&actual.secondPayouts)diffs.second.push(delta(1));
  }
- const summary=(runs:ReturnType<typeof totals>):ResultStats=>({average:runs.reduce((s,r)=>s+r.hits,0)/(n*trials),threePlus:runs.reduce((s,r)=>s+r.three,0)/(n*trials),chanceRate:runs.reduce((s,r)=>s+r.chance,0)/(n*trials),low:Math.min(...runs.map(r=>r.hits/n)),high:Math.max(...runs.map(r=>r.hits/n)),gain:priced?runs.reduce((s,r)=>s+r.gain,0)/(priced*trials):null,wins:runs.reduce((s,r)=>s+r.wins,0),secondGain:secondPriced?runs.reduce((s,r)=>s+r.secondGain,0)/(secondPriced*trials):null,secondWins:runs.reduce((s,r)=>s+r.secondWins,0)});
- return {method,seed,draws:n,priced,secondPriced,trials,first:draws[start].date,last:draws.at(-1)!.date,strategy:summary(selected),baseline:summary(baseline),trace};
+ const edge=(values:number[]):Edge|null=>{
+  if(values.length<2)return null;
+  const mean=values.reduce((a,b)=>a+b,0)/values.length,variance=values.reduce((s,v)=>s+(v-mean)**2,0)/(values.length-1);
+  return {delta:mean,margin:1.96*Math.sqrt(variance/values.length),draws:values.length};
+ };
+ const summary=(runs:ReturnType<typeof totals>):ResultStats=>({average:runs.reduce((s,r)=>s+r.hits,0)/(n*trials),threePlus:runs.reduce((s,r)=>s+r.three,0)/(n*trials),chanceRate:runs.reduce((s,r)=>s+r.chance,0)/(n*trials),low:Math.min(...runs.map(r=>r.hits/n)),high:Math.max(...runs.map(r=>r.hits/n)),gain:priced?runs.reduce((s,r)=>s+r.gain,0)/(priced*trials):null,wins:runs.reduce((s,r)=>s+r.wins,0),secondGain:secondPriced?runs.reduce((s,r)=>s+r.secondGain,0)/(secondPriced*trials):null,secondWins:runs.reduce((s,r)=>s+r.secondWins,0),jackpots:runs.reduce((s,r)=>s+r.jackpots,0)});
+ return {method,seed,draws:n,priced,secondPriced,trials,first:draws[start].date,last:draws.at(-1)!.date,long,strategy:summary(selected),baseline:summary(baseline),edge:edge(diffs.main),secondEdge:edge(diffs.second),trace};
 }
