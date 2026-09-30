@@ -56,3 +56,8 @@ jobs:
           git add data/
           git commit -m "chore(data): update LOTO draws"
           git push
+
+      # After the commit so any new data is still published; a stale dataset turns the run red
+      # and GitHub emails the maintainer.
+      - name: Check data freshness
+        run: npm run freshness

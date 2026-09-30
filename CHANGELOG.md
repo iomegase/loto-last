@@ -14,6 +14,9 @@ Le projet suit [Semantic Versioning](https://semver.org/) :
 
 - module Pronostics : grilles reproductibles, contraintes et quatre méthodes exploratoires ;
 - simulation chronologique face au hasard, sans accès aux résultats futurs, sur 20 répétitions ;
+- méthode « Numéros peu joués » : popularité des numéros et du numéro Chance estimée d’après les gagnants par rang (depuis mars 2017), pour des gains moins partagés sans changer les chances de gagner ;
+- simulation chiffrée en euros avec les rapports réellement versés à chaque tirage, option 2nd tirage comprise ;
+- contrôle de fraîcheur des données dans la mise à jour automatique (échec si le dernier tirage a plus de 7 jours) ;
 
 - atelier local en français : vue d’ensemble, numéros, paires et historique ;
 - filtres communs, détail des numéros, recherche, pagination et exports CSV ;

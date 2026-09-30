@@ -102,7 +102,7 @@ app.addEventListener("submit",event=>{
   if(!dataset)return;
   try {
    const f=state.forecast,draws=filterDraws(dataset.draws,state.filters);
-   const grids=generateGrids(draws,{method:f.method,count:f.quantity,seed:f.seed,include:parseQuery(f.include),exclude:parseQuery(f.exclude)});
+   const grids=generateGrids(draws,{method:f.method,count:f.quantity,seed:f.seed,include:parseQuery(f.include),exclude:parseQuery(f.exclude),reference:referenceDraws()});
    f.generated={grids,method:f.method,seed:f.seed,through:draws.at(-1)!.date};f.error="";
   } catch(error) {state.forecast.error=(error as Error).message;}
   render();return;
@@ -112,6 +112,8 @@ app.addEventListener("submit",event=>{
  try { state.queryNumbers=parseQuery(state.query);state.queryError=""; } catch(error) {state.queryError=(error as Error).message;}
  state.page=0;render();
 });
+// Popularity needs every modern draw with published winners, whatever the analysis window.
+function referenceDraws() {return dataset?filterDraws(dataset.draws,{...state.filters,window:"all"}):[];}
 function clearForecast() {state.forecast.generated=null;state.forecast.result=null;state.forecast.error="";}
 app.addEventListener("input",event=>{
  const input=event.target as HTMLInputElement;
@@ -129,7 +131,7 @@ async function runBacktest() {
  await new Promise(resolve=>setTimeout(resolve,40));
  try {
   if(filters!==JSON.stringify(state.filters)||data!==dataset)return;
-  state.forecast.result=backtest(source,method,seed);
+  state.forecast.result=backtest(source,method,seed,referenceDraws());
  } catch(error) {state.forecast.error=(error as Error).message;}
  finally {state.forecast.busy=false;render();}
 }

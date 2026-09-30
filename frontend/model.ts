@@ -8,7 +8,12 @@ export interface Draw {
   numbers: number[];
   bonus: number;
   second: number[] | null;
+  /** Main-draw winners and payouts for ranks 1–9 (modern 9-rank grid only). */
+  prizes?: Prizes | null;
+  /** "2nd tirage" payouts for ranks 1–4 (5, 4, 3 and 2 good numbers), since November 2019. */
+  secondPayouts?: number[] | null;
 }
+export interface Prizes { winners: number[]; payouts: number[] }
 export interface Dataset {
   schemaVersion: 1;
   updatedAt: string;
